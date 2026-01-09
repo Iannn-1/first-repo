@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CorpPortal - Full Stack Prototype</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #1a2a6c; --secondary: #b21f1f; --bg: #f4f6f9; }
+        body { background-color: var(--bg); font-family: 'Segoe UI', sans-serif; min-height: 100vh; display: flex; flex-direction: column; }
+        .navbar { background: linear-gradient(90deg, var(--primary), var(--secondary)); }
+        .navbar-brand, .nav-link { color: white !important; }
+        .page { display: none; padding: 2rem 0; }
+        .page.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Auth State Helpers */
+        body.authenticated .guest-only { display: none !important; }
+        body.not-authenticated .auth-only { display: none !important; }
+        body:not(.is-admin) .admin-only { display: none !important; }
+
+        .form-header { background: #212529; color: white; padding: 15px; border-radius: 10px 10px 0 0; }
+        .request-item-row { background: #f8f9fa; padding: 10px; border-radius: 5px; margin-bottom: 10px; border: 1px solid #dee2e6; }
+        
+        /* Home Page Styling */
+        .home-content { text-align: left; }
+        .custom-alert { background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb; }
+        .code-text { color: #e83e8c; font-family: monospace; font-weight: bold; }
+    </style>
+</head>
+<body class="not-authenticated">
+
+    <nav class="navbar navbar-expand-lg sticky-top">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#/">FULL-STACK APP</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <li class="nav-item"><a class="nav-link" href="#/">Home</a></li>
+                    <li class="nav-item guest-only"><a class="nav-link" href="#/login">Login</a></li>
+                    <li class="nav-item guest-only"><a class="nav-link btn btn-outline-light btn-sm ms-2" href="#/register">Register</a></li>
+                    <li class="nav-item auth-only"><a class="nav-link" href="#/requests">My Requests</a></li>
+                    <li class="nav-item dropdown auth-only">
+                        <a class="nav-link dropdown-toggle" href="#" data-bs-toggle="dropdown">Account</a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="#/profile">Profile</a></li>
+                            <li><a class="dropdown-item" href="#/requests">My Requests</a></li>
+                            <li><hr class="dropdown-divider admin-only"></li>
+                            <li><h6 class="dropdown-header admin-only">Admin</h6></li>
+                            <li><a class="dropdown-item admin-only" href="#/admin-accounts">Accounts</a></li>
+                            <li><a class="dropdown-item admin-only" href="#/admin-depts">Departments</a></li>
+                            <li><a class="dropdown-item admin-only" href="#/admin-employees">Employees</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="handleLogout()">Logout</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container flex-grow-1">
+        
+        <section id="home-page" class="page active">
+            <div class="mt-5 home-content">
+                <div class="auth-only mb-4">
+                    <div class="alert alert-success">Welcome back, <strong id="home-user-name">User</strong>!</div>
+                </div>
+                <h1 class="display-5 fw-bold mb-3">Welcome to Full-Stack App</h1>
+                <p class="lead mb-3">A static prototype before backend integration. Simulates:</p>
+                <ul class="mb-4" style="font-size: 1.1rem; line-height: 1.8;">
+                    <li>Email registration + fake verification</li>
+                    <li>Login with JWT-like token simulation</li>
+                    <li>Role-based UI (Admin/User)</li>
+                    <li>CRUD for Employees, Departments, Requests</li>
+                </ul>
+                <div class="alert custom-alert border-0 shadow-sm p-3 mb-4">
+                    <strong>⚠️ Note:</strong> All data is stored in <span class="code-text">localStorage</span>. Refresh to reset.
+                </div>
+                <a href="#/login" class="btn btn-primary btn-lg px-4 fw-bold">Get Started &rarr;</a>
+            </div>
+        </section>
+
+        <section id="register-page" class="page">
+            <div class="card mx-auto" style="max-width: 500px;">
+                <div class="form-header"><h5>Create Account</h5></div>
+                <div class="card-body p-4">
+                    <form onsubmit="handleRegister(event)">
+                        <div class="row mb-3">
+                            <div class="col"><label>First Name</label><input type="text" id="reg-fname" class="form-control" required></div>
+                            <div class="col"><label>Last Name</label><input type="text" id="reg-lname" class="form-control" required></div>
+                        </div>
+                        <div class="mb-3"><label>Email</label><input type="email" id="reg-email" class="form-control" required></div>
+                        <div class="mb-3"><label>Password</label><input type="password" id="reg-pass" class="form-control" minlength="6" required></div>
+                        <button type="submit" class="btn btn-success w-100">Sign Up</button>
+                    </form>
+                    <div class="text-center mt-3"><a href="#/login">Already have an account?</a></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="verify-email-page" class="page">
+            <div class="card mx-auto text-center p-5" style="max-width: 500px;">
+                <h3>Verify Email</h3>
+                <p class="text-muted">Link sent to <strong id="verify-email-display">...</strong></p>
+                <button onclick="simulateVerification()" class="btn btn-primary w-100">✅ Click to Verify Email</button>
+            </div>
+        </section>
+
+        <section id="login-page" class="page">
+            <div class="card mx-auto" style="max-width: 400px;">
+                <div class="form-header"><h5>Login</h5></div>
+                <div class="card-body p-4">
+                    <form onsubmit="handleLogin(event)">
+                        <div class="mb-3"><label>Email</label><input type="email" id="login-email" class="form-control" required></div>
+                        <div class="mb-3"><label>Password</label><input type="password" id="login-pass" class="form-control" required></div>
+                        <button type="submit" class="btn btn-primary w-100">Sign In</button>
+                    </form>
+                    <div class="mt-3 text-center text-muted small">Admin: admin@example.com / 123456</div>
+                </div>
+            </div>
+        </section>
+
+        <section id="profile-page" class="page">
+            <h2>My Profile</h2>
+            <div class="card p-4">
+                <h3><span id="prof-name">Name</span></h3>
+                <p>Email: <span id="prof-email"></span></p>
+                <p>Role: <span id="prof-role" class="badge bg-primary"></span></p>
+            </div>
+        </section>
+
+        <section id="requests-page" class="page">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2>My Requests</h2>
+                <button class="btn btn-primary" onclick="openRequestModal()">+ New Request</button>
+            </div>
+            <table class="table bg-white shadow-sm"><thead class="table-dark"><tr><th>Date</th><th>Type</th><th>Items</th><th>Status</th></tr></thead><tbody id="requests-table-body"></tbody></table>
+        </section>
+
+        <section id="admin-accounts-page" class="page">
+            <div class="d-flex justify-content-between mb-3"><h2>Accounts</h2><button class="btn btn-success" onclick="openAccountModal()">+ Add Account</button></div>
+            <table class="table bg-white"><thead class="table-light"><tr><th>Name</th><th>Email</th><th>Role</th><th>Verified</th><th>Actions</th></tr></thead><tbody id="admin-acc-table"></tbody></table>
+        </section>
+        
+        <section id="admin-depts-page" class="page">
+            <div class="d-flex justify-content-between mb-3">
+                <h2>Departments</h2>
+                <button class="btn btn-success" onclick="openDeptModal()">+ Add Department</button>
+            </div>
+            <table class="table bg-white">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th>Description</th>
+                        <th style="width: 150px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-dept-table"></tbody>
+            </table>
+        </section>
+
+        <section id="admin-employees-page" class="page">
+            <div class="d-flex justify-content-between mb-3"><h2>Employees</h2><button class="btn btn-success" onclick="openEmployeeModal()">+ Add Employee</button></div>
+            <table class="table bg-white"><thead class="table-light"><tr><th>ID</th><th>User</th><th>Position</th><th>Dept</th></tr></thead><tbody id="admin-emp-table"></tbody></table>
+        </section>
+
+    </div>
+
+    <div class="modal fade" id="deptModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Manage Department</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="dept-id">
+                    <div class="mb-3">
+                        <label>Department Name</label>
+                        <input id="dept-name" class="form-control" placeholder="e.g. Engineering">
+                    </div>
+                    <div class="mb-3">
+                        <label>Description</label>
+                        <textarea id="dept-desc" class="form-control" rows="2" placeholder="Description of responsibilities..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary" onclick="saveAdminDept()">Save Changes</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="requestModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">New Request</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <select id="req-type" class="form-select mb-3"><option>Equipment</option><option>Leave</option><option>Resources</option></select>
+                    <div id="req-items-container"></div>
+                    <button class="btn btn-sm btn-secondary w-100" onclick="addRequestItemRow()">+ Add Item</button>
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary" onclick="submitRequest()">Submit</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="accountModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Add Account</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" id="acc-id">
+                    <input id="acc-fname" class="form-control mb-2" placeholder="First Name">
+                    <input id="acc-lname" class="form-control mb-2" placeholder="Last Name">
+                    <input id="acc-email" class="form-control mb-2" placeholder="Email">
+                    <input id="acc-pass" class="form-control mb-2" placeholder="Password">
+                    <select id="acc-role" class="form-select mb-2"><option value="User">User</option><option value="Admin">Admin</option></select>
+                    <div class="form-check"><input type="checkbox" id="acc-verified" class="form-check-input"><label class="form-check-label">Verified</label></div>
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary" onclick="saveAdminAccount()">Save</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="employeeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title">Add Employee</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input id="emp-id" class="form-control mb-2" placeholder="Employee ID">
+                    <select id="emp-user-select" class="form-select mb-2"></select>
+                    <input id="emp-pos" class="form-control mb-2" placeholder="Position">
+                    <select id="emp-dept-select" class="form-select mb-2"></select>
+                    <input type="date" id="emp-date" class="form-control">
+                </div>
+                <div class="modal-footer"><button class="btn btn-primary" onclick="saveAdminEmployee()">Save</button></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-container position-fixed bottom-0 end-0 p-3">
+        <div id="liveToast" class="toast align-items-center text-white bg-primary border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toast-msg">Notification</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // --- 1. SETUP & UTILS ---
+        const STORAGE_KEY = 'ipt_demo_fixed';
+        let currentUser = null;
+        window.db = { accounts: [], departments: [], employees: [], requests: [] };
+
+        function safeMsg(msg, type='primary') {
+            try {
+                const toastEl = document.getElementById('liveToast');
+                document.getElementById('toast-msg').innerText = msg;
+                toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
+                const toast = new bootstrap.Toast(toastEl);
+                toast.show();
+            } catch (e) { alert(msg); }
+        }
+
+        // --- 2. DATA LAYER ---
+        function loadData() {
+            const data = localStorage.getItem(STORAGE_KEY);
+            if (data) {
+                try { window.db = JSON.parse(data); } catch(e) { console.error("Data reset"); }
+            }
+            if (!window.db.accounts || window.db.accounts.length === 0) {
+                window.db.accounts = [{ id: 1, fname: 'System', lname: 'Admin', email: 'admin@example.com', pass: '123456', role: 'Admin', verified: true }];
+                window.db.departments = [{ id: 1, name: 'IT', desc: 'Technical Support' }, { id: 2, name: 'HR', desc: 'Human Resources' }];
+                window.db.employees = [];
+                window.db.requests = [];
+                saveData();
+            }
+        }
+        function saveData() { localStorage.setItem(STORAGE_KEY, JSON.stringify(window.db)); }
+
+        // --- 3. AUTH LOGIC ---
+        function handleRegister(e) {
+            e.preventDefault();
+            const email = document.getElementById('reg-email').value;
+            const pass = document.getElementById('reg-pass').value;
+            const fname = document.getElementById('reg-fname').value;
+            const lname = document.getElementById('reg-lname').value;
+
+            if (window.db.accounts.find(u => u.email === email)) {
+                return safeMsg("Email already registered!", "danger");
+            }
+
+            const newUser = { id: Date.now(), fname, lname, email, pass, role: 'User', verified: false };
+            window.db.accounts.push(newUser);
+            saveData();
+            localStorage.setItem('unverified_email', email);
+            safeMsg("Account created! Verify email.", "success");
+            navigateTo('#/verify-email');
+        }
+
+        function simulateVerification() {
+            const email = localStorage.getItem('unverified_email');
+            const user = window.db.accounts.find(u => u.email === email);
+            if (user) {
+                user.verified = true;
+                saveData();
+                safeMsg("Email Verified! Login now.", "success");
+                navigateTo('#/login');
+            } else {
+                safeMsg("No pending verification.", "warning");
+                navigateTo('#/register');
+            }
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const pass = document.getElementById('login-pass').value;
+            const user = window.db.accounts.find(u => u.email === email && u.pass === pass);
+
+            if (!user) return safeMsg("Invalid credentials", "danger");
+            if (!user.verified) {
+                localStorage.setItem('unverified_email', email);
+                return navigateTo('#/verify-email');
+            }
+
+            currentUser = user;
+            localStorage.setItem('auth_token', user.email);
+            updateAuthState();
+            safeMsg(`Welcome, ${user.fname}!`, "success");
+            navigateTo('#/requests');
+        }
+
+        function handleLogout() {
+            currentUser = null;
+            localStorage.removeItem('auth_token');
+            updateAuthState();
+            safeMsg("Logged out", "info");
+            navigateTo('#/');
+        }
+
+        // --- 4. ROUTER ---
+        function updateAuthState() {
+            const body = document.body;
+            if (currentUser) {
+                body.classList.remove('not-authenticated');
+                body.classList.add('authenticated');
+                body.classList.toggle('is-admin', currentUser.role === 'Admin');
+                document.getElementById('home-user-name').innerText = currentUser.fname;
+            } else {
+                body.classList.add('not-authenticated');
+                body.classList.remove('authenticated');
+                body.classList.remove('is-admin');
+            }
+        }
+
+        function navigateTo(hash) { window.location.hash = hash; }
+
+        function handleRouting() {
+            let hash = window.location.hash || '#/';
+            const protectedRoutes = ['#/profile', '#/requests', '#/admin-accounts', '#/admin-depts', '#/admin-employees'];
+            const adminRoutes = ['#/admin-accounts', '#/admin-depts', '#/admin-employees'];
+
+            if (!currentUser && protectedRoutes.includes(hash)) {
+                safeMsg("Login first", "warning");
+                return navigateTo('#/login');
+            }
+            if (currentUser && currentUser.role !== 'Admin' && adminRoutes.includes(hash)) {
+                safeMsg("Access Denied", "danger");
+                return navigateTo('#/');
+            }
+
+            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+            const pageId = {
+                '#/': 'home-page', '#/login': 'login-page', '#/register': 'register-page',
+                '#/verify-email': 'verify-email-page', '#/profile': 'profile-page', '#/requests': 'requests-page',
+                '#/admin-accounts': 'admin-accounts-page', '#/admin-depts': 'admin-depts-page', '#/admin-employees': 'admin-employees-page'
+            }[hash] || 'home-page';
+
+            const pageEl = document.getElementById(pageId);
+            if(pageEl) pageEl.classList.add('active');
+
+            if(hash === '#/profile') renderProfile();
+            if(hash === '#/requests') renderRequests();
+            if(hash === '#/verify-email') document.getElementById('verify-email-display').innerText = localStorage.getItem('unverified_email') || 'Unknown';
+            if(hash.startsWith('#/admin')) renderAdminData();
+        }
+
+        // --- 5. RENDERERS ---
+        function renderProfile() {
+            if(currentUser) {
+                document.getElementById('prof-name').innerText = currentUser.fname + " " + currentUser.lname;
+                document.getElementById('prof-email').innerText = currentUser.email;
+                document.getElementById('prof-role').innerText = currentUser.role;
+            }
+        }
+
+        function renderAdminData() {
+            // Accounts
+            document.getElementById('admin-acc-table').innerHTML = window.db.accounts.map(u => `
+                <tr><td>${u.fname} ${u.lname}</td><td>${u.email}</td><td>${u.role}</td><td>${u.verified ? '✅' : '❌'}</td>
+                <td><button class="btn btn-sm btn-danger" onclick="deleteAcc(${u.id})">Delete</button></td></tr>
+            `).join('');
+
+            // Departments (UPDATED: Added Edit/Delete buttons)
+            document.getElementById('admin-dept-table').innerHTML = window.db.departments.map(d => `
+                <tr>
+                    <td>${d.name}</td>
+                    <td>${d.desc}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="editDept(${d.id})">Edit</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteDept(${d.id})">Delete</button>
+                    </td>
+                </tr>
+            `).join('');
+
+            // Employees
+            document.getElementById('admin-emp-table').innerHTML = window.db.employees.map(e => `<tr><td>${e.id}</td><td>${e.email}</td><td>${e.pos}</td><td>${e.dept}</td></tr>`).join('');
+        }
+
+        // --- 6. DEPARTMENT LOGIC (NEW) ---
+        function openDeptModal() {
+            document.getElementById('dept-id').value = '';
+            document.getElementById('dept-name').value = '';
+            document.getElementById('dept-desc').value = '';
+            new bootstrap.Modal(document.getElementById('deptModal')).show();
+        }
+
+        function editDept(id) {
+            const dept = window.db.departments.find(d => d.id === id);
+            if(dept) {
+                document.getElementById('dept-id').value = dept.id;
+                document.getElementById('dept-name').value = dept.name;
+                document.getElementById('dept-desc').value = dept.desc;
+                new bootstrap.Modal(document.getElementById('deptModal')).show();
+            }
+        }
+
+        function saveAdminDept() {
+            const id = document.getElementById('dept-id').value;
+            const name = document.getElementById('dept-name').value;
+            const desc = document.getElementById('dept-desc').value;
+
+            if(!name) return safeMsg("Name is required", "warning");
+
+            if (id) {
+                // Edit
+                const idx = window.db.departments.findIndex(d => d.id == id);
+                if(idx > -1) {
+                    window.db.departments[idx].name = name;
+                    window.db.departments[idx].desc = desc;
+                    safeMsg("Department updated", "success");
+                }
+            } else {
+                // Add
+                window.db.departments.push({ id: Date.now(), name, desc });
+                safeMsg("Department added", "success");
+            }
+
+            saveData();
+            bootstrap.Modal.getInstance(document.getElementById('deptModal')).hide();
+            renderAdminData();
+        }
+
+        function deleteDept(id) {
+            if(confirm("Are you sure you want to delete this department?")) {
+                window.db.departments = window.db.departments.filter(d => d.id !== id);
+                saveData();
+                renderAdminData();
+                safeMsg("Department deleted", "info");
+            }
+        }
+
+        // --- 7. OTHER HELPERS ---
+        function deleteAcc(id) {
+            if(confirm("Delete user?")) {
+                window.db.accounts = window.db.accounts.filter(u => u.id !== id);
+                saveData();
+                renderAdminData();
+            }
+        }
+        function openRequestModal() { new bootstrap.Modal(document.getElementById('requestModal')).show(); }
+        function addRequestItemRow() {
+            const div = document.createElement('div');
+            div.className = 'request-item-row d-flex gap-2';
+            div.innerHTML = `<input class="form-control" placeholder="Item"><input type="number" class="form-control" placeholder="Qty" style="width:80px"><button onclick="this.parentElement.remove()" class="btn btn-danger">×</button>`;
+            document.getElementById('req-items-container').appendChild(div);
+        }
+        function submitRequest() {
+            const rows = document.querySelectorAll('#req-items-container .request-item-row');
+            if(rows.length === 0) return safeMsg("Add items first", "warning");
+            const items = Array.from(rows).map(r => ({ name: r.querySelectorAll('input')[0].value, qty: r.querySelectorAll('input')[1].value }));
+            window.db.requests.push({ date: new Date().toLocaleDateString(), type: document.getElementById('req-type').value, items, status: 'Pending', employeeEmail: currentUser.email });
+            saveData();
+            bootstrap.Modal.getInstance(document.getElementById('requestModal')).hide();
+            renderRequests();
+            safeMsg("Request sent!", "success");
+            document.getElementById('req-items-container').innerHTML = '';
+            addRequestItemRow();
+        }
+        function renderRequests() {
+            const myReqs = window.db.requests.filter(r => r.employeeEmail === currentUser.email);
+            document.getElementById('requests-table-body').innerHTML = myReqs.map(r => `<tr><td>${r.date}</td><td>${r.type}</td><td>${r.items.map(i=>i.qty+'x '+i.name).join(', ')}</td><td><span class="badge bg-warning text-dark">${r.status}</span></td></tr>`).join('') || '<tr><td colspan="4">No requests.</td></tr>';
+        }
+        function openAccountModal() { document.getElementById('acc-id').value = ''; new bootstrap.Modal(document.getElementById('accountModal')).show(); }
+        function saveAdminAccount() {
+            window.db.accounts.push({ id: Date.now(), fname: document.getElementById('acc-fname').value, lname: document.getElementById('acc-lname').value, email: document.getElementById('acc-email').value, pass: document.getElementById('acc-pass').value, role: document.getElementById('acc-role').value, verified: document.getElementById('acc-verified').checked });
+            saveData(); bootstrap.Modal.getInstance(document.getElementById('accountModal')).hide(); renderAdminData();
+        }
+        function openEmployeeModal() {
+            document.getElementById('emp-user-select').innerHTML = window.db.accounts.map(u => `<option value="${u.email}">${u.email}</option>`).join('');
+            document.getElementById('emp-dept-select').innerHTML = window.db.departments.map(d => `<option value="${d.name}">${d.name}</option>`).join('');
+            new bootstrap.Modal(document.getElementById('employeeModal')).show();
+        }
+        function saveAdminEmployee() {
+            window.db.employees.push({ id: document.getElementById('emp-id').value, email: document.getElementById('emp-user-select').value, pos: document.getElementById('emp-pos').value, dept: document.getElementById('emp-dept-select').value });
+            saveData(); bootstrap.Modal.getInstance(document.getElementById('employeeModal')).hide(); renderAdminData();
+        }
+
+        // --- INIT ---
+        window.addEventListener('load', () => {
+            loadData();
+            const token = localStorage.getItem('auth_token');
+            if(token) {
+                const user = window.db.accounts.find(u => u.email === token);
+                if(user) { currentUser = user; updateAuthState(); }
+            }
+            window.addEventListener('hashchange', handleRouting);
+            if(!window.location.hash) window.location.hash = '#/';
+            handleRouting();
+            addRequestItemRow();
+        });
+    </script>
+</body>
+</html>
